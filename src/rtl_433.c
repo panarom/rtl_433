@@ -49,6 +49,8 @@ int debug_output = 0;
 int quiet_mode = 0;
 int utc_mode = 0;
 int overwrite_mode = 0;
+int have_opt_i = 0;
+char *dev_identifier;
 
 typedef enum  {
     CONVERT_NATIVE,
@@ -909,11 +911,15 @@ int main(int argc, char **argv) {
     demod->level_limit = DEFAULT_LEVEL_LIMIT;
     demod->hop_time = DEFAULT_HOP_TIME;
 
-    while ((opt = getopt(argc, argv, "x:z:p:DtaAI:qm:r:l:d:f:H:g:s:b:n:SR:F:C:T:UWGy:")) != -1) {
+    while ((opt = getopt(argc, argv, "x:z:p:DtaAI:qm:r:l:d:i:f:H:g:s:b:n:SR:F:C:T:UWGy:")) != -1) {
         switch (opt) {
             case 'd':
                 dev_index = atoi(optarg);
                 have_opt_d = 1;
+                break;
+            case 'i':
+                have_opt_i = 1;
+                dev_identifier = optarg;
                 break;
             case 'f':
                 if (frequencies < MAX_PROTOCOLS) frequency[frequencies++] = (uint32_t) atof(optarg);
@@ -1096,15 +1102,26 @@ int main(int argc, char **argv) {
     }
 
     if (!quiet_mode) fprintf(stderr, "Found %d device(s)\n\n", device_count);
+
+    char *cmp = NULL;
+    size_t id_length;
     for (i = have_opt_d ? dev_index : 0;
          i < (have_opt_d ? dev_index + 1 : device_count);
          i++) {
-        if (!quiet_mode) {
-            rtlsdr_get_device_usb_strings(i, vendor, product, serial);
-
-            fprintf(stderr, "trying device  %d:  %s, %s, SN: %s\n",
-                    i, vendor, product, serial);
+        rtlsdr_get_device_usb_strings(i, vendor, product, serial);
+        
+        if (!quiet_mode) fprintf(stderr, "trying device  %d:  %s, %s, SN: %s\n",
+                                 i, vendor, product, serial);
+        
+        if (have_opt_i) {
+            id_length = strlen(vendor) + strlen(product) + strlen(serial) + 2;
+            
+            cmp = realloc(cmp, id_length + 1);
+            if(cmp == NULL) exit(1);
+            if(sprintf(cmp, "%s:%s:%s") != id_length + 1) exit(1);
+            if(strcmp(dev_identifier, cmp)) continue;
         }
+
         r = rtlsdr_open(&dev, i);
         if (r < 0) {
             if (!quiet_mode) fprintf(stderr, "Failed to open rtlsdr device #%d.\n\n",
