@@ -1104,7 +1104,7 @@ int main(int argc, char **argv) {
     if (!quiet_mode) fprintf(stderr, "Found %d device(s)\n\n", device_count);
 
     char *cmp = NULL;
-    size_t id_length;
+    size_t id_length, cmp_length;
     for (i = have_opt_d ? dev_index : 0;
          i < (have_opt_d ? dev_index + 1 : device_count);
          i++) {
@@ -1115,11 +1115,11 @@ int main(int argc, char **argv) {
         
         if (have_opt_i) {
             id_length = strlen(vendor) + strlen(product) + strlen(serial) + 2;
-            
-            cmp = realloc(cmp, id_length + 1);
+            cmp_length = id_length + 1;
+            cmp = realloc(cmp, cmp_length);
             if(cmp == NULL) exit(1);
-            if(sprintf(cmp, "%s:%s:%s") != id_length + 1) exit(1);
-            if(strcmp(dev_identifier, cmp)) continue;
+            if(snprintf(cmp, cmp_length, "%s:%s:%s") != id_length) exit(1);
+            if(strncmp(dev_identifier, cmp, id_length)) continue;
         }
 
         r = rtlsdr_open(&dev, i);
