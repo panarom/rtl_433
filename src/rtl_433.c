@@ -50,7 +50,7 @@ int quiet_mode = 0;
 int utc_mode = 0;
 int overwrite_mode = 0;
 int have_opt_i = 0;
-char *dev_identifier;
+char *dev_serial;
 
 typedef enum  {
     CONVERT_NATIVE,
@@ -101,6 +101,7 @@ void usage(r_device *devices) {
             "rtl_433, an ISM band generic data receiver for RTL2832 based DVB-T receivers\n\n"
             "Usage:\t= Tuner options =\n"
             "\t[-d <RTL-SDR USB device index>] (default: 0)\n"
+            "\t[-i <RTL-SDR USB device serial number>]\n"
             "\t[-g <gain>] (default: 0 for auto)\n"
             "\t[-f <frequency>] [-f...] Receive frequency(s) (default: %i Hz)\n"
             "\t[-H <seconds>] Hop interval for polling of multiple frequencies (default: %i seconds)\n"
@@ -919,7 +920,7 @@ int main(int argc, char **argv) {
                 break;
             case 'i':
                 have_opt_i = 1;
-                dev_identifier = optarg;
+                dev_serial = optarg;
                 break;
             case 'f':
                 if (frequencies < MAX_PROTOCOLS) frequency[frequencies++] = (uint32_t) atof(optarg);
@@ -1103,8 +1104,7 @@ int main(int argc, char **argv) {
 
     if (!quiet_mode) fprintf(stderr, "Found %d device(s)\n\n", device_count);
 
-    char *cmp = NULL;
-    size_t id_length, cmp_length;
+    if (have_opt_i) r=-1; //in case serial# specified but device not found
     for (i = have_opt_d ? dev_index : 0;
          i < (have_opt_d ? dev_index + 1 : device_count);
          i++) {
@@ -1113,14 +1113,7 @@ int main(int argc, char **argv) {
         if (!quiet_mode) fprintf(stderr, "trying device  %d:  %s, %s, SN: %s\n",
                                  i, vendor, product, serial);
         
-        if (have_opt_i) {
-            id_length = strlen(vendor) + strlen(product) + strlen(serial) + 2;
-            cmp_length = id_length + 1;
-            cmp = realloc(cmp, cmp_length);
-            if(cmp == NULL) exit(1);
-            if(snprintf(cmp, cmp_length, "%s:%s:%s") != id_length) exit(1);
-            if(strncmp(dev_identifier, cmp, id_length)) continue;
-        }
+        if (have_opt_i && strncmp(dev_serial, serial, strlen(serial))) continue;
 
         r = rtlsdr_open(&dev, i);
         if (r < 0) {
